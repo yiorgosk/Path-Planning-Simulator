@@ -1,4 +1,5 @@
 // Including general libraries
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -71,6 +72,7 @@ public:
     double step_size_, min_dist_from_robot_;
     bool initialized_;
     int width;int height;
+    int planner_index;
     
     costmap_2d::Costmap2DROS* costmap_ros_;
     costmap_2d::Costmap2D* costmap_;
