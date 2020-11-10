@@ -46,7 +46,10 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 		height = costmap_->getSizeInCellsY();
 		resolution = costmap_->getResolution();
 		mapSize = width*height;
-
+		
+		std::cout("Enter 1 for Astar\n Enter 2 for Dijkstra \n Enter 3 for BFS \n");
+                std::cin>>planner_index;
+		
 		OGM = new bool [mapSize]; 
 		for (unsigned int iy = 0; iy < height; iy++){
 			for (unsigned int ix = 0; ix < width; ix++){
@@ -208,10 +211,16 @@ vector<int> PathPlannersROS::PathFinder(int startCell, int goalCell){
 
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
 	
-	bestPath=AStar(startCell, goalCell,  g_score);
-	// bestPath=Dijkstra(startCell, goalCell,  g_score);
-	// bestPath=BFS(startCell, goalCell,  g_score);
-	// bestPath=JPS(startCell,goalCell,g_score);
+	switch(planner_index){
+            case 1:
+	        bestPath=AStar(startCell, goalCell,  g_score);
+                break;
+            case 2:
+	         bestPath=Dijkstra(startCell, goalCell,  g_score);
+                 break;
+	    case 3:
+                 bestPath=BFS(startCell, goalCell,  g_score);
+                 break;
 
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
 
