@@ -6,7 +6,7 @@
 #include <string.h>
 #include <set>
 #include <pluginlib/class_list_macros.h>
-
+#include <algorithm>
 // Including ROS specific libraries
 #include <ros/ros.h>
 
@@ -81,8 +81,9 @@ public:
     void getCoordinate (float& x, float& y);
     void convertToCoordinate(int index, float& x, float& y);
     void mapToWorld(double mx, double my, double& wx, double& wy);
-    void add_open(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[],int n);
-   
+    void add_open(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[], int n);
+    void add_open_lifelong(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[], float rhs_score[], int n);
+
     bool validate(float x, float y);
     bool isValid(int startCell,int goalCell); 
     bool isFree(int CellID); //returns true if the cell is Free
@@ -97,6 +98,7 @@ public:
     vector <int> getNeighbour (int CellID);
     vector<int> PathFinder(int startCell, int goalCell);
     vector<int> AStar(int startCell, int goalCell, float g_score[]);
+    vector<int> Lifelong(int startCell, int goalCell, float g_score[], float rhs_score[]);
     vector<int> Dijkstra(int startCell, int goalCell, float g_score[]);
     vector<int> BFS(int startCell, int goalCell, float g_score[]);
     vector<int> constructPath(int startCell, int goalCell, float g_score[]);
