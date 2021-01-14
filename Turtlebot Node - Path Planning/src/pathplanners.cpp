@@ -46,7 +46,7 @@ void PathPlannersROS::initialize(std::string name, costmap_2d::Costmap2DROS* cos
 		height = costmap_->getSizeInCellsY();
 		resolution = costmap_->getResolution();
 		mapSize = width*height;
-                ROS_INFO("Enter 1 for Astar\n Enter 2 for Dijkstra \n Enter 3 for BFS \n Enter 4 for Lifelong");
+                ROS_INFO("Enter 1 for A*\n Enter 2 for Dijkstra \n Enter 3 for BFS \n Enter 4 for Lifelong \n Enter 5 for D* Lite");
                 std::cin>>planner_index;
 		OGM = new bool [mapSize]; 
 		for (unsigned int iy = 0; iy < height; iy++){
@@ -121,25 +121,46 @@ bool PathPlannersROS::makePlan(const geometry_msgs::PoseStamped& start, const ge
 		bestPath.clear();
 		bestPath = PathFinder(startCell, goalCell);
 		if(bestPath.size()>0){
-			for (int i = 0; i < bestPath.size(); i++){
-				float x = 0.0;
-				float y = 0.0;
-				int index = bestPath[i];
-				convertToCoordinate(index, x, y);
-				geometry_msgs::PoseStamped pose = goal;
+			if (planner_index!=5){
+				for (int i = 0; i < bestPath.size(); i++){
+					float x = 0.0;
+					float y = 0.0;
+					int index = bestPath[i];
+					convertToCoordinate(index, x, y);
+					geometry_msgs::PoseStamped pose = goal;
 
-				pose.pose.position.x = x;
-				pose.pose.position.y = y;
-				pose.pose.position.z = 0.0;
+					pose.pose.position.x = x;
+					pose.pose.position.y = y;
+					pose.pose.position.z = 0.0;
 
-				pose.pose.orientation.x = 0.0;
-				pose.pose.orientation.y = 0.0;
-				pose.pose.orientation.z = 0.0;
-				pose.pose.orientation.w = 1.0;
+					pose.pose.orientation.x = 0.0;
+					pose.pose.orientation.y = 0.0;
+					pose.pose.orientation.z = 0.0;
+					pose.pose.orientation.w = 1.0;
 
-				plan.push_back(pose);
+					plan.push_back(pose);
+				}
 			}
+			else{
+				for (int i = bestPath.size(); i >= 0; i--){
+					float x = 0.0;
+					float y = 0.0;
+					int index = bestPath[i];
+					convertToCoordinate(index, x, y);
+					geometry_msgs::PoseStamped pose = goal;
 
+					pose.pose.position.x = x;
+					pose.pose.position.y = y;
+					pose.pose.position.z = 0.0;
+
+					pose.pose.orientation.x = 0.0;
+					pose.pose.orientation.y = 0.0;
+					pose.pose.orientation.z = 0.0;
+					pose.pose.orientation.w = 1.0;
+
+					plan.push_back(pose);
+				}
+			}
 			float path_length = 0.0;
 			std::vector<geometry_msgs::PoseStamped>::iterator it = plan.begin();
 			geometry_msgs::PoseStamped last_pose;
@@ -203,9 +224,11 @@ vector<int> PathPlannersROS::PathFinder(int startCell, int goalCell){
 	vector<int> bestPath;
 	float g_score [mapSize];
         float rhs_score [mapSize];
+	float f_score [mapSize];
 	for (uint i=0; i<mapSize; i++){
 		g_score[i]=infinity;
                 rhs_score[i]=infinity;
+		f_score[i]=infinity;
         }
 
 	timespec time1, time2;
@@ -225,6 +248,9 @@ vector<int> PathPlannersROS::PathFinder(int startCell, int goalCell){
             case 4:
                 bestPath=Lifelong(startCell, goalCell, g_score, rhs_score);
                 break;
+	    case 5:
+		bestPath=DStarLite(startCell, goalCell, g_score, rhs_score, f_score);
+		break;
         }	
 
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
@@ -280,12 +306,11 @@ vector<int> PathPlannersROS::Lifelong(int startCell, int goalCell, float g_score
 	multiset<cells> OPL;
 	int currentCell;
 
-	g_score[startCell]=infinity;
         rhs_score[startCell]=0;
 	CP.currentCell=startCell;
 	CP.fCost=std::min(g_score[startCell], rhs_score[startCell])+heuristic(startCell,goalCell,1);
 	OPL.insert(CP);
-	currentCell=startCell;
+	currentCell=goalCell;
 	
 	while (!OPL.empty()&& g_score[goalCell]==infinity){
 		currentCell = OPL.begin()->currentCell;
@@ -311,12 +336,70 @@ vector<int> PathPlannersROS::Lifelong(int startCell, int goalCell, float g_score
 					rhs_score[neighborCells[i]]=std::min(rhs_score[neighborCells[i]],g_score[neighborCells[i]]);
 					add_open_lifelong(OPL, neighborCells[i], goalCell, g_score, rhs_score, 3); 
 				}
-		}
+		         }
 		}
 	}
 		
 	if(g_score[goalCell]!=infinity){
 		bestPath=constructPath(startCell, goalCell, g_score);
+		return bestPath; 
+	}
+	
+	else{
+		cout << "Path not found!" << endl;
+		return emptyPath;
+	}
+}
+
+vector<int> PathPlannersROS::DStarLite(int startCell, int goalCell, float g_score[], float rhs_score[], float f_score[]){
+	vector<int> bestPath;
+	vector<int> emptyPath;
+	cells CP;
+
+	multiset<cells> OPL;
+	int currentCell;
+	
+	int km=0;
+        rhs_score[goalCell]=0;
+	CP.currentCell=goalCell;
+	CP.fCost=std::min(g_score[goalCell], rhs_score[goalCell])+heuristic(goalCell,startCell,1)+km;
+	f_score[currentCell]=CP.fCost;
+	OPL.insert(CP);
+	currentCell=goalCell;
+	
+	while (!OPL.empty()&& g_score[startCell]==infinity){
+		currentCell = OPL.begin()->currentCell;
+		OPL.erase(OPL.begin());
+		vector <int> neighborCells; 
+		neighborCells=getNeighbour(currentCell);
+
+		if (f_score[currentCell]<(std::min(g_score[goalCell], rhs_score[goalCell])+heuristic(goalCell,startCell,1)+km))
+			add_open_dlite(OPL, currentCell, startCell, g_score, rhs_score, f_score, 3);
+		
+		if (g_score[currentCell]>rhs_score[currentCell]){
+			g_score[currentCell]=rhs_score[currentCell];
+			for(uint i=0; i<neighborCells.size(); i++){
+				if(g_score[neighborCells[i]]==infinity){
+					rhs_score[neighborCells[i]]=g_score[currentCell]+getMoveCost(currentCell,neighborCells[i]);
+					rhs_score[neighborCells[i]]=std::min(rhs_score[neighborCells[i]],g_score[neighborCells[i]]);
+					add_open_lifelong(OPL, neighborCells[i], startCell, g_score, rhs_score, 3); 
+				}
+			}
+		}
+		else{
+			g_score[currentCell] = infinity;
+			for(uint i=0; i<neighborCells.size(); i++){
+				if(g_score[neighborCells[i]]==infinity){
+					rhs_score[neighborCells[i]]=g_score[currentCell]+getMoveCost(currentCell,neighborCells[i]);
+					rhs_score[neighborCells[i]]=std::min(rhs_score[neighborCells[i]],g_score[neighborCells[i]]);
+					add_open_lifelong(OPL, neighborCells[i], startCell, g_score, rhs_score, 3); 
+				}
+		         }
+		}
+	}
+		
+	if(g_score[startCell]!=infinity){
+		bestPath=constructPath(goalCell, startCell, g_score);
 		return bestPath; 
 	}
 	
@@ -455,6 +538,23 @@ void PathPlannersROS::add_open_lifelong(multiset<cells> & OPL, int neighborCell,
 			OPL.insert(CP);
 	
 }
+
+void PathPlannersROS::add_open_dlite(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[] , float rhs_score[], float f_score[], int n){
+	cells CP;
+	CP.currentCell=neighborCell;
+	CP.fCost=std::min(g_score[neighborCell], rhs_score[neighborCell])+heuristic(neighborCell,goalCell,1);
+	f_score[neighborCell]=CP.fCost;
+	auto it=OPL.find(CP);
+	if (n==3)
+		
+		if (it!=OPL.end())
+                	OPL.erase(CP);
+		if (g_score[neighborCell]!=rhs_score[neighborCell])
+			OPL.insert(CP);
+	
+}
+
+
 vector <int> PathPlannersROS::getNeighbour (int CellID){
 	int rowID=getRow(CellID);
 	int colID=getCol(CellID);
