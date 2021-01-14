@@ -83,6 +83,7 @@ public:
     void mapToWorld(double mx, double my, double& wx, double& wy);
     void add_open(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[], int n);
     void add_open_lifelong(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[], float rhs_score[], int n);
+    void add_open_dlite(multiset<cells> & OPL, int neighborCell, int goalCell, float g_score[], float rhs_score[], float f_score[],  int n);
 
     bool validate(float x, float y);
     bool isValid(int startCell,int goalCell); 
@@ -99,6 +100,7 @@ public:
     vector<int> PathFinder(int startCell, int goalCell);
     vector<int> AStar(int startCell, int goalCell, float g_score[]);
     vector<int> Lifelong(int startCell, int goalCell, float g_score[], float rhs_score[]);
+    vector<int> DStarLite(int startCell, int goalCell, float g_score[], float rhs_score[], float f_score[]);
     vector<int> Dijkstra(int startCell, int goalCell, float g_score[]);
     vector<int> BFS(int startCell, int goalCell, float g_score[]);
     vector<int> constructPath(int startCell, int goalCell, float g_score[]);
